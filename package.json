@@ -1,0 +1,9 @@
+{
+  "name": "port_acquisition_daemon",
+  "version": "0.0.1",
+  "description": "A daemon for leasing open ports",
+  "main": "index.js",
+  "keywords": [],
+  "author": "resolritter",
+  "license": "ISC"
+}
