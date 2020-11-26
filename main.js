@@ -3,7 +3,7 @@ const cp = require("child_process")
 const fs = require("fs")
 const assert = require("assert")
 
-const port = process.env.PORT
+const port = process.argv[1]
 if (!port) {
   console.error("PORT environment variable has not been set")
   process.exit(1)
