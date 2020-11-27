@@ -3,11 +3,8 @@ const cp = require("child_process")
 const fs = require("fs")
 const assert = require("assert")
 
-const port = process.argv[1]
-if (!port) {
-  console.error("PORT environment variable has not been set")
-  process.exit(1)
-}
+const daemonPort = process.argv[2]
+assert.ok(parseInt(daemonPort))
 
 const [lowestPort, highestPort] = fs
   .readFileSync("/proc/sys/net/ipv4/ip_local_port_range")
@@ -77,7 +74,7 @@ const requestListener = function(req, res) {
     const port = acquirePort()
     if (port) {
       db.set(port, undefined)
-      res.writeHead(200, { "Content-Type": "text/plain" })
+      res.writeHead(201, { "Content-Type": "text/plain" })
       res.end(port.toString())
       return
     } else {
@@ -98,4 +95,26 @@ const requestListener = function(req, res) {
 }
 
 const server = http.createServer(requestListener)
-server.listen(port)
+let serverPromiseRef = {}
+let errRef = {}
+
+const startWait = 500
+setTimeout(function() {
+  if (errRef.current) {
+    console.error(errRef.current)
+    process.exit(1)
+  } else {
+    console.log(`Server is listening on port ${daemonPort}\n`)
+  }
+}, startWait)
+;(async function() {
+  await new Promise(function() {
+    try {
+      server.listen(daemonPort)
+    } catch (err) {
+      reject(err)
+    }
+  }).catch(function(err) {
+    errRef.current = err
+  })
+})()
