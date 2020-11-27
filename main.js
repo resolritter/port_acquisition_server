@@ -3,9 +3,6 @@ const cp = require("child_process")
 const fs = require("fs")
 const assert = require("assert")
 
-const daemonPort = process.argv[2]
-assert.ok(parseInt(daemonPort))
-
 const [lowestPort, highestPort] = fs
   .readFileSync("/proc/sys/net/ipv4/ip_local_port_range")
   .toString()
@@ -67,6 +64,9 @@ const acquirePort = function() {
   }
 }
 
+const daemonPort = acquirePort()
+assert.ok(daemonPort)
+
 const requestListener = function(req, res) {
   const [, ops, value] = req.url.split("/")
 
@@ -104,7 +104,7 @@ setTimeout(function() {
     console.error(errRef.current)
     process.exit(1)
   } else {
-    console.log(`Server is listening on port ${daemonPort}\n`)
+    console.log(`Listening on http://127.0.0.1:${daemonPort}\n`)
   }
 }, startWait)
 ;(async function() {
