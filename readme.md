@@ -7,29 +7,26 @@ will keep track of it and respond with a different port each time. The
 reservation is only kept in-memory, thus the registry will be lost when the
 server stops.
 
-The main use-case I have for it is for reserving ports for parallel service
-instances during concurrent integration tests' execution. In practice:
+The project was born for the need of reserving ports during concurrent integration
+tests' execution. In practice:
 
-1. Spin up this server before running tests
-2. Call it when you're executing an integration test to reserve ports for
-  your database, web server, etc... This will guarantee each service will
-  bind to a different port, even though they're all running concurrently
-3. When the whole suit is done, kill this daemon. All ports are freed, then.
+1. Start this server before running tests
+2. Send a request to the server before you spawn a service in order to get a reserved
+   port. Since the acquisition is synchronized by the server, doing so will guarantee
+   that each service gets its own port, even though the tests are executing in parallel.
+3. When the whole suit is done, kill this daemon, which will discard the registry.
 
 [Coded use-case](https://github.com/resolritter/koa_knex_starter/blob/40b5c8711efc5c0a7763d2216212f2a78983cd94/src/tests/integration/lib/utils.js#L10)
 
 # Running
 
-Purposefully, this server relies only on built-in Node packages. No third-party
-package has to be started from NPM. Simply run:
+Purposefully, this server relies only on built-in Node packages. Simply run:
 
 ```
 npm run start
 ```
 
-That will start the server in some available port and print its bound address on startup.
-
-**Output**
+When the server starts, its address will be printed to stdout, as shown below.
 
 ```
 > port_acquisition_server@0.0.1 start /home/reaysawa/js/port_acquisition_server
