@@ -8,22 +8,21 @@ const [lowestPort, highestPort] = fs
   .toString()
   .split("\n")[0]
   .split("\t")
-  .map(function(port) {
+  .map(function (port) {
     return parseInt(port)
   })
 assert.ok(lowestPort)
 assert.ok(highestPort)
 
-const db = new Map()
-
-const acquirePort = function() {
+const acquiredPorts = new Set()
+const acquirePort = function () {
   const takenPorts = new Map(
     cp
       .execFileSync("ss", ["-lntu"], { stdio: ["inherit", "pipe", "inherit"] })
       .toString()
       .split("\n")
       .slice(1)
-      .map(function(line) {
+      .map(function (line) {
         let separatorCount = 0
         let isSpace = false
         for (let i = 0; i < line.length; ++i) {
@@ -51,29 +50,26 @@ const acquirePort = function() {
           }
         }
       })
-      .map(function(v) {
+      .map(function (v) {
         return [v, undefined]
       }, {}),
   )
 
   for (let i = lowestPort; i < highestPort; ++i) {
-    if (!db.has(i.toString())) {
-      db.set(i.toString(), undefined)
+    if (!acquiredPorts.has(i.toString())) {
+      acquiredPorts.add(i.toString())
       return i
     }
   }
 }
 
-const daemonPort = acquirePort()
-assert.ok(daemonPort)
-
-const requestListener = function(req, res) {
+const requestListener = function (req, res) {
   const [, ops, value] = req.url.split("/")
 
   if (ops === "acquirePort") {
     const port = acquirePort()
     if (port) {
-      db.set(port, undefined)
+      acquiredPorts.set(port, undefined)
       res.writeHead(201, { "Content-Type": "text/plain" })
       res.end(port.toString())
       return
@@ -84,7 +80,7 @@ const requestListener = function(req, res) {
     const port = parseInt(value)
     if (isNaN(port)) {
       res.writeHead(422)
-    } else if (db.delete(port)) {
+    } else if (acquiredPorts.delete(port)) {
       res.writeHead(200)
     } else {
       res.writeHead(404)
@@ -94,27 +90,35 @@ const requestListener = function(req, res) {
   res.end()
 }
 
-const server = http.createServer(requestListener)
-let serverPromiseRef = {}
-let errRef = {}
+const die = function (err) {
+  console.error(err)
+  process.exit(1)
+}
 
-const startWait = 500
-setTimeout(function() {
-  if (errRef.current) {
-    console.error(errRef.current)
-    process.exit(1)
-  } else {
-    console.log(`Listening on http://127.0.0.1:${daemonPort}\n`)
-  }
-}, startWait)
-;(async function() {
-  await new Promise(function() {
-    try {
-      server.listen(daemonPort)
-    } catch (err) {
-      reject(err)
+try {
+  // promise will never resolve, thus the process will be running until
+  // killed; node waits for hanging handles running anyways
+  new Promise(function () {
+    // keep trying until a port is acquired
+    while (true) {
+      const daemonPort = acquirePort()
+      assert.ok(daemonPort)
+      try {
+        const server = http.createServer(requestListener)
+        server.listen(daemonPort)
+        console.log(`Listening on http://127.0.0.1:${daemonPort}\n`)
+        break
+      } catch (err) {
+        if (
+          !(err instanceof Error) ||
+          // this error can be recovered from by trying another port
+          !err.message.includes("address already in use")
+        ) {
+          throw err
+        }
+      }
     }
-  }).catch(function(err) {
-    errRef.current = err
-  })
-})()
+  }).catch(die)
+} catch (err) {
+  die(err)
+}
