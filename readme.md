@@ -32,7 +32,7 @@ That will start the server in some available port and print its bound address on
 **Output**
 
 ```
-> port_acquisition_server@0.0.1 start /home/reaysawa/js/port_acquisition_server
+> port_acquisition_server@0.0.1 start /home/user/js/port_acquisition_server
 > node main.js
 
 Listening on http://127.0.0.1:32768
